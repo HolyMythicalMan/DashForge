@@ -22,7 +22,7 @@ export class ControlsPage {
         if (!this.visible) {
             return;
         }
-
+    
         const lines = [
             "E - Toggle Editor",
             "",
@@ -48,31 +48,45 @@ export class ControlsPage {
             "",
             "O - Toggle Controls Page"
         ];
-
-        const padding = 30;
-        const lineHeight = 28;
-        const boxWidth = 400;
-        const boxHeight = padding * 2 + lines.length * lineHeight;
-
+    
+        const screenW = this.game.canvas.width;
+        const screenH = this.game.canvas.height;
+    
+        // Responsive sizing
+        const padding = screenW * 0.015;
+        const titleFontSize = screenH * 0.035;
+        const textFontSize = screenH * 0.026;
+        const lineHeight = textFontSize * 1.4;
+    
+        const boxWidth = screenW * 0.25;
+        const boxHeight = padding * 2 + lines.length * lineHeight + 25;
+    
+        // Top-right corner
+        const boxX = screenW - boxWidth - padding;
+        const boxY = padding;
+    
         ctx.save();
-
+    
+        // Background
         ctx.fillStyle = "rgba(0,0,0,0.75)";
-        ctx.fillRect(50, 50, boxWidth, boxHeight);
-
+        ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+    
+        // Title
         ctx.fillStyle = "white";
-        ctx.font = "22px Arial";
-        ctx.fillText("Editor Controls", 70, 90);
-
-        ctx.font = "18px Arial";
-
-        let y = 130;
-
+        ctx.font = `${titleFontSize}px Arial`;
+        ctx.fillText("Editor Controls", boxX + padding, boxY + padding + titleFontSize);
+    
+        // Lines
+        ctx.font = `${textFontSize}px Arial`;
+    
+        let y = boxY + padding + titleFontSize * 2;
+    
         for (const line of lines) {
-            ctx.fillText(line, 70, y);
+            ctx.fillText(line, boxX + padding, y);
 
-            y += 28;
+            y += lineHeight;
         }
-
-        ctx.restore();
+    
+        ctx.restore();    
     }
 }

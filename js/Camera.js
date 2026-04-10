@@ -12,7 +12,7 @@ export class Camera {
             this.x = player.x - screenWidth * 0.3;
         }
         else if (mode === 1) {
-            const marginX = 850;
+            const marginX = screenWidth * 0.4;
             const leftBoundary = this.x + marginX;
             const rightBoundary = this.x + screenWidth - marginX;
 
