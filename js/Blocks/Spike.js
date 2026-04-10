@@ -46,7 +46,7 @@ export class Spike {
         const w = this.size * 0.25;
         const h = this.size * 0.5;
         const offsetX = (this.size - w) / 2;
-        const offsetY = (this.size - h) / 3;
+        const offsetY = (this.size - h) / 1.5;
 
         const cx = this.x + size / 2;
         const cy = this.y + size / 2;

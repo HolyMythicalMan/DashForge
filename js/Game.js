@@ -1,9 +1,13 @@
 import { Player } from "./Player.js";
 import { Camera } from "./Camera.js";
 import { Editor } from "./Editor.js";
+import { ControlsPage } from "./ControlsPage.js";
 import { Floor } from "./Floor.js";
-import { Block } from "./Block.js";
-import { Spike } from "./Spike.js";
+
+import { Block } from "./Blocks/Block.js";
+import { Spike } from "./Blocks/Spike.js";
+import { StartBlock } from "./Blocks/StartBlock.js";
+import { GoalBlock } from "./Blocks/GoalBlock.js";
 
 console.log("Game.js loaded");
 
@@ -30,6 +34,10 @@ export class Game {
         this.debugHitboxes = false;
         this.debugNoclip = false;
 
+        // The Map
+        this.backgroundColor = "#000";
+        //this.floorColor = "#111";
+
         // Movement
         this.keys = {
             left: false,
@@ -49,7 +57,7 @@ export class Game {
         );
 
         // Player
-        this.player = new Player(100, 14 * this.grid, 50, 50, "#0f0");
+        this.player = new Player(100, 14 * this.grid, 50, 50);
         this.dead = false;
         this.deathTimer = 0;
 
@@ -57,13 +65,24 @@ export class Game {
         this.editorMode = false;
         this.editor = new Editor(this);
 
+        // Controls Page
+        this.controlsPage = new ControlsPage(this, this.editor);
+
         // Objects
         this.blocks = [];
         this.spikes = [];
+        this.goalBlocks = [];
+
+        this.selectionFillStyle = "rgba(0,255,0,0.6)";
 
         // Methods
         this.resize();
         this.bindInput();
+
+        const saved = localStorage.getItem("level");
+        if (saved) {
+            this.editor.importLevel(saved);
+        }
 
         window.addEventListener("resize", () => this.resize());
     }
@@ -80,7 +99,7 @@ export class Game {
     init() {
         const ctx = this.ctx;
 
-        ctx.fillStyle = "#000";
+        ctx.fillStyle = this.backgroundColor;
         ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         requestAnimationFrame(this.loop.bind(this));
@@ -125,6 +144,7 @@ export class Game {
         this.handleFloorCollision();
         this.handleBlockCollision();
         this.handleSpikeCollision();
+        this.handleGoalCollision();
 
         if (this.player.onGround && !this.keys.left && !this.keys.right) {
             this.player.vx *= this.player.friction;
@@ -158,7 +178,7 @@ export class Game {
     render() {
         const ctx = this.ctx;
     
-        ctx.fillStyle = "#000";
+        ctx.fillStyle = this.backgroundColor;
         ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         if (!this.editorMode) {
@@ -173,14 +193,12 @@ export class Game {
 
         this.floor.draw(ctx, this.camera);
 
-        if (this.editorMode) {
-            this.editor.draw(ctx);
-        }
-        else {
-            this.drawPlayer();
+        if (this.startBlock) {
+            this.startBlock.draw(ctx, this.camera);
         }
         
-
+        this.drawPlayer();
+        
         for (const block of this.blocks) {
             const isSelected = this.editor.selectedObjects.includes(
                 this.editor.level.find(o => o.x * this.grid === block.x && o.y * this.grid === block.y)
@@ -189,7 +207,7 @@ export class Game {
             ctx.save();
 
             if (isSelected) {
-                ctx.fillStyle = "rgba(0,255,0,0.6)";
+                ctx.fillStyle = this.selectionFillStyle;
             }
 
             block.draw(ctx, this.camera);
@@ -208,7 +226,7 @@ export class Game {
             ctx.save();
 
             if (isSelected) {
-                ctx.fillStyle = "rgba(0,255,0,0.6)";
+                ctx.fillStyle = this.selectionFillStyle;
             }
 
             spike.draw(ctx, this.camera);
@@ -219,6 +237,29 @@ export class Game {
                 this.drawHitbox(spike.getHitbox(), "red");
             }
         }
+
+        for (const goalBlock of this.goalBlocks) {
+            const isSelected = this.editor.selectedObjects.includes(
+                this.editor.level.find(o => o.x * this.grid === goalBlock.x && o.y * this.grid === goalBlock.y)
+            );
+
+            ctx.save();
+
+            if (isSelected) {
+                ctx.fillStyle = this.selectionFillStyle;
+            }
+
+            goalBlock.draw(ctx, this.camera);
+
+            ctx.restore();
+        }
+
+        if (this.editorMode) {
+            this.editor.draw(ctx);
+        }
+
+        this.drawDebugStatus(ctx);
+        this.controlsPage.draw(ctx);
     }
 
     bindInput() {
@@ -226,35 +267,62 @@ export class Game {
             if (!this.editorMode) {
                 // Platformer movement
                 if (e.code === "KeyA" || e.code === "ArrowLeft") {
-                    this.keys.left = true;
                     e.preventDefault();
+
+                    this.keys.left = true;
                 }
                 if (e.code === "KeyD" || e.code === "ArrowRight") {
-                    this.keys.right = true;
                     e.preventDefault();
+
+                    this.keys.right = true;
                 }
 
                 // Jumping
                 if (e.code === "KeyW" || e.code === "ArrowUp" || e.code === "Space") {
-                    this.player.jump();
                     e.preventDefault();
+                    
+                    this.player.jump();
                 }
 
+                // Placeholder for now (level settings later)
                 if (e.code === "KeyM") {
+                    e.preventDefault();
+
                     this.mode = this.mode === 0 ? 1 : 0;
                     console.log("Mode: " + this.mode);
                 }
             }
 
+            if (e.code === "KeyE") {
+                e.preventDefault();
+
+                this.editorMode = !this.editorMode;
+            }
+
+            if (e.code === "KeyR") {
+                e.preventDefault();
+
+                this.editorMode = false;
+                this.reset();
+            }
+
+            if (e.code === "KeyO") {
+                e.preventDefault();
+
+                this.controlsPage.toggle();
+            }
+
+            // Debug Keybinds
+
             if (e.code === "KeyH") {
+                e.preventDefault();
+
                 this.debugHitboxes = !this.debugHitboxes;
             }
             if (e.code === "KeyJ") {
-                this.debugNoclip = !this.debugNoclip;
-            }
+                e.preventDefault();
 
-            if (e.code === "KeyE") {
-                this.editorMode = !this.editorMode;
+                this.debugNoclip = !this.debugNoclip;
             }
         });
 
@@ -299,6 +367,33 @@ export class Game {
         ctx.fillStyle = color;
         ctx.globalAlpha = 0.35;
         ctx.fillRect(sx + 1, sy + 1, rect.w - 2, rect.h - 2);
+
+        ctx.restore();
+    }
+
+    drawDebugStatus(ctx) {
+        if (this.editorMode) {
+            return;
+        }
+
+        const flags = this.getActiveDebugFlags();
+
+        if (flags.length === 0) {
+            return;
+        }
+
+        ctx.save();
+
+        ctx.font = "20px Arial";
+        ctx.fillStyle = "white";
+
+        let x = 10;
+        let y = 30;
+
+        for (const flag of flags) {
+            ctx.fillText(flag, x, y);
+            y += 28;
+        }
 
         ctx.restore();
     }
@@ -352,7 +447,7 @@ export class Game {
                 pOuter.x < bh.x + bh.w &&
                 pOuter.x + pOuter.w > bh.x;
 
-            if (horizontalOverlap && pBottom >= bTop && this.player.y < bTop) {
+            if (horizontalOverlap && pBottom >= bTop && this.player.y < bTop && this.player.vy >= 0) {
                 this.player.y = bTop - this.player.height;
                 this.player.vy = 0;
                 this.player.onGround = true;
@@ -410,6 +505,16 @@ export class Game {
         }
     }
 
+    handleGoalCollision() {
+        const pHit = this.player.getBlockHitbox();
+
+        for (const goal of this.goalBlocks) {
+            if (this.rectsOverlap(pHit, goal.getHitbox())) {
+                this.reset(); // Placeholder for level completion
+            }
+        }
+    }
+
     // Hitbox Methods
 
     rectsOverlap(a, b) {
@@ -451,6 +556,8 @@ export class Game {
     loadLevel(levelArray) {
         this.blocks = [];
         this.spikes = [];
+        this.startBlock = null;
+        this.goalBlocks = [];
 
         for (const obj of levelArray) {
             if (obj.type === "block") {
@@ -461,6 +568,37 @@ export class Game {
                 spike.rotation = obj.rotation || 0;
                 this.spikes.push(spike);
             }
+            if (obj.type === "start") {
+                this.startBlock = new StartBlock(obj.x * this.grid, obj.y * this.grid, this.grid);
+            }
+            if (obj.type === "goal") {
+                this.goalBlocks.push(new GoalBlock(obj.x * this.grid, obj.y * this.grid, this.grid));
+            }
         }
+
+        if (this.startBlock) {
+            this.player.spawnX = this.startBlock.x;
+            this.player.spawnY = this.startBlock.y;
+        }
+        else {
+            this.player.spawnX = 100;
+            this.player.spawnY = 14 * this.grid;
+        }
+    }
+
+    // Miscellaneous Methods
+
+    getActiveDebugFlags() {
+        const flags = [];
+
+        if (this.debugHitboxes) {
+            flags.push("Hitboxes");
+        }
+
+        if (this.debugNoclip) {
+            flags.push("Invulerability");
+        }
+
+        return flags;
     }
 }

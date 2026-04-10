@@ -17,17 +17,6 @@ export class Block {
             this.width,
             this.height
         );
-
-        /*
-        ctx.strokeStyle = "#fff";
-        ctx.lineWidth = 3;
-        ctx.strokeRect(
-            camera.worldToScreenX(this.x),
-            camera.worldToScreenY(this.y),
-            this.width,
-            this.height
-        );
-        */
     }
 
     getHitbox() {

@@ -1,0 +1,9 @@
+Add cube rotation on jumping or fall
+Fix normal mode's block leeway when landing just short of a block
+Fix floor and grid placements (especially resizing)
+Add level settings
+Add exporting level datas online
+Add level loader from user created levels (official and unnofficial)
+Fix jumping to be automatic
+Figure out weird landing block physics in platformer mode
+Consider coyote time and landing leeway
