@@ -8,7 +8,57 @@
         <title>DashForge</title>
     </head>
     
-    <body></body>
+    <body>
+        <div id="settingsPanel" hidden>
+            <label>
+                <input type="checkbox" id="modeCheckbox">
+                Platformer Mode
+            </label>
+            <br>
+
+            <label>
+                Background Color: 
+                <input type="color" id="bgColorInput">
+            </label>
+            <br>
+
+            <label>
+                Gravity: 
+                <input type="number" id="gravityInput">
+            </label>
+            <br>
+
+            <br>
+            <button id="applyBtn">Apply</button>
+            <button id="resetBtn">Reset to Default</button>
+        </div>
+
+        <div id="controlsPanel">
+            <h2>Editor Controls</h2>
+
+            <p>E - Toggle Editor</p>
+            <p>1 - Block</p>
+            <p>2 - Spike</p>
+            <p>3 - Start Block</p>
+            <p>4 - Goal Block</p>
+            <p>Left Click - Select / Place</p>
+            <p>Right Click - Delete</p>
+            <p>Ctrl + Click - Multi-Select</p>
+            <p>WASD - Move Camera</p>
+            <p>Arrow Keys - Rotate</p>
+            <p>Ctrl + C - Copy</p>
+            <p>Ctrl + Z - Undo</p>
+            <p>Ctrl + Y - Redo</p>
+            <p>Ctrl + S - Save Level</p>
+            <p>Ctrl + L - Load Level</p>
+            <p>Ctrl + Shift + R - Reset Level</p>
+            <p>Backspace - Delete Selected</p>
+            <p>Esc - Deselect</p>
+
+            <br>
+            <p>O - Toggle Controls Page</p>
+        </div>
+    </body>
 
     <script src="./js/Main.js" type="module"></script>
 </html>

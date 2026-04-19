@@ -1,8 +1,10 @@
 import { Player } from "./Player.js";
 import { Camera } from "./Camera.js";
 import { Editor } from "./Editor.js";
-import { ControlsPage } from "./ControlsPage.js";
 import { Floor } from "./Floor.js";
+
+import { Controls } from "./Menus/Controls.js";
+import { LevelSettings } from "./Menus/LevelSettings.js";
 
 import { Block } from "./Blocks/Block.js";
 import { Spike } from "./Blocks/Spike.js";
@@ -28,20 +30,25 @@ export class Game {
             0: Default
             1: Platformer
         */
-        this.mode = 1;
+
+        this.paused = false;
+
+        this.settings = {
+            mode: 1,
+            backgroundColor: "#000",
+            gravity: 0.6,
+            playerSpeed: 6
+        };
 
         // Debug
         this.debugHitboxes = false;
         this.debugNoclip = false;
 
-        // The Map
-        this.backgroundColor = "#000";
-        //this.floorColor = "#111";
-
         // Movement
         this.keys = {
             left: false,
-            right: false
+            right: false,
+            jump: false
         }
 
         // Camera
@@ -65,8 +72,9 @@ export class Game {
         this.editorMode = false;
         this.editor = new Editor(this);
 
-        // Controls Page
-        this.controlsPage = new ControlsPage(this, this.editor);
+        // Menus
+        this.controlsPage = new Controls(this, this.editor);
+        this.levelSettingsPage = new LevelSettings(this, this.editor);
 
         // Objects
         this.blocks = [];
@@ -91,6 +99,7 @@ export class Game {
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
 
+        this.floor.y = 15 * this.grid;
         this.floor.width = this.canvas.width;
 
         this.init();
@@ -99,7 +108,7 @@ export class Game {
     init() {
         const ctx = this.ctx;
 
-        ctx.fillStyle = this.backgroundColor;
+        ctx.fillStyle = this.settings.backgroundColor;
         ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         requestAnimationFrame(this.loop.bind(this));
@@ -124,6 +133,10 @@ export class Game {
     }
 
     update() {
+        if (this.paused) {
+            return;
+        }
+
         if (this.editorMode) {
             return;
         }
@@ -139,31 +152,66 @@ export class Game {
 
         this.player.onGround = false;
 
-        this.player.update();
+        if (this.keys.jump) {
+            this.player.jumpBuffer = this.player.jumpBufferTime;
+        }
+        else {
+            this.player.jumpBuffer = Math.max(0, this.player.jumpBuffer - this.step);
+        }
+
+        this.player.update(this.settings.gravity);
 
         this.handleFloorCollision();
         this.handleBlockCollision();
         this.handleSpikeCollision();
         this.handleGoalCollision();
 
+        if (!this.player.onGround) {
+            this.player.rotation += this.player.rotationSpeed * this.player.facing;
+            this.player.rotation %= 360;
+        }
+        else {
+            let r = this.player.rotation % 360;
+            if (r < 0) {
+                r += 360;
+            }
+
+            let target = Math.round(r / 90) * 90;
+            target = target % 360;
+
+            let delta = ((target - r + 540) % 360) - 180;
+            const step = Math.sign(delta) * Math.min(Math.abs(delta), this.player.rotationResetSpeed);
+
+            r += step;
+
+            if (Math.abs(delta) <= this.player.rotationResetSpeed) {
+                r = target;
+            }
+
+            this.player.rotation = r;
+        }
+    
+
         if (this.player.onGround && !this.keys.left && !this.keys.right) {
             this.player.vx *= this.player.friction;
         }
 
-        if (this.mode === 0) {
-            this.player.vx = this.player.speed;
+        if (this.settings.mode === 0) {
+            this.player.vx = this.settings.playerSpeed;
         }
-        else if (this.mode === 1) {
+        else if (this.settings.mode === 1) {
             let accel = this.player.onGround
                 ? this.player.accelGround
                 : this.player.accelAir;
             
             if (this.keys.left) {
                 this.player.vx -= accel;
+                this.player.facing = -1;
             }
 
             if (this.keys.right) {
                 this.player.vx += accel;
+                this.player.facing = 1;
             }
 
             if (this.player.vx > this.player.maxSpeed) {
@@ -173,12 +221,17 @@ export class Game {
                 this.player.vx = -this.player.maxSpeed;
             }
         }
+
+        if (this.player.onGround && this.player.jumpBuffer > 0) {
+            this.player.jump();
+            this.player.jumpBuffer = 0;
+        }
     }
 
     render() {
         const ctx = this.ctx;
     
-        ctx.fillStyle = this.backgroundColor;
+        ctx.fillStyle = this.settings.backgroundColor;
         ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         if (!this.editorMode) {
@@ -187,17 +240,17 @@ export class Game {
                 this.floor,
                 this.canvas.width,
                 this.canvas.height,
-                this.mode
+                this.settings.mode
             );
         }
+
+        this.drawPlayer();
 
         this.floor.draw(ctx, this.camera);
 
         if (this.startBlock) {
             this.startBlock.draw(ctx, this.camera);
         }
-        
-        this.drawPlayer();
         
         for (const block of this.blocks) {
             const isSelected = this.editor.selectedObjects.includes(
@@ -259,10 +312,13 @@ export class Game {
         }
 
         this.drawDebugStatus(ctx);
-        this.controlsPage.draw(ctx);
     }
 
     bindInput() {
+        if (this.paused) {
+            return;
+        }
+
         window.addEventListener("keydown", e => {
             if (!this.editorMode) {
                 // Platformer movement
@@ -277,32 +333,33 @@ export class Game {
                     this.keys.right = true;
                 }
 
-                // Jumping
+                // Jumping (rework jump buffering later)
                 if (e.code === "KeyW" || e.code === "ArrowUp" || e.code === "Space") {
                     e.preventDefault();
                     
-                    this.player.jump();
-                }
-
-                // Placeholder for now (level settings later)
-                if (e.code === "KeyM") {
-                    e.preventDefault();
-
-                    this.mode = this.mode === 0 ? 1 : 0;
-                    console.log("Mode: " + this.mode);
+                    this.keys.jump = true;
                 }
             }
 
             if (e.code === "KeyE") {
                 e.preventDefault();
 
+                if (this.paused) {
+                    return;
+                }
+
                 this.editorMode = !this.editorMode;
+
+                if (!this.editorMode) {
+                    this.editor.selectedObjects = [];
+                }
             }
 
-            if (e.code === "KeyR") {
+            if (e.code === "KeyR" && !e.ctrlKey && !e.shiftKey) {
                 e.preventDefault();
 
                 this.editorMode = false;
+                this.editor.selectedObjects = [];
                 this.reset();
             }
 
@@ -324,6 +381,14 @@ export class Game {
 
                 this.debugNoclip = !this.debugNoclip;
             }
+
+            // Menus
+
+            if (e.code === "KeyP") {
+                e.preventDefault();
+
+                this.levelSettingsPage.toggle();
+            }
         });
 
         window.addEventListener("keyup", e => {
@@ -333,6 +398,15 @@ export class Game {
             if (e.code === "KeyD" || e.code === "ArrowRight") {
                 this.keys.right = false;
             }
+
+            if (e.code === "KeyW" || e.code === "ArrowUp" || e.code === "Space") {
+                this.keys.jump = false;
+            }
+        });
+
+        window.addEventListener("mousedown", e => {
+            const mx = e.clientX;
+            const my = e.clientY;
         });
     }
 
@@ -342,13 +416,26 @@ export class Game {
         const ctx = this.ctx;
         const p = this.player;
 
+        const sx = this.camera.worldToScreenX(p.x);
+        const sy = this.camera.worldToScreenY(p.y);
+
+        ctx.save();
+
+        ctx.translate(sx + p.width / 2, sy + p.height / 2);
+
+        ctx.rotate(p.rotation * Math.PI / 180);
+
+        ctx.scale(p.facing, 1);
+
         ctx.fillStyle = p.color;
         ctx.fillRect(
-            this.camera.worldToScreenX(p.x),
-            this.camera.worldToScreenY(p.y),
+            -p.width / 2,
+            -p.height / 2,
             p.width,
             p.height
         );
+
+        ctx.restore();
 
         if (this.debugHitboxes) {
             this.drawHitbox(p.getSpikeHitbox(), "red");
@@ -432,7 +519,7 @@ export class Game {
         for (const b of this.blocks) {
             const bh = b.getHitbox();
 
-            if (this.mode === 1) {
+            if (this.settings.mode === 1) {
                 if (this.rectsOverlap(pOuter, bh)) {
                     this.resolveSolidCollision(pOuter, bh);
                 }
@@ -455,7 +542,7 @@ export class Game {
                 continue;
             }
 
-            if (this.mode === 0) {
+            if (this.settings.mode === 0) {
                 const overlapAmount =
                     Math.min(pOuter.x + pOuter.w, bh.x + bh.w) -
                     Math.max(pOuter.x, bh.x);
@@ -549,6 +636,9 @@ export class Game {
         this.player.onGround = false;
 
         this.dead = false;
+
+        this.player.jumpBuffer = 0;
+        this.player.rotation = 0;
     }
 
     // Level Methods
@@ -596,7 +686,7 @@ export class Game {
         }
 
         if (this.debugNoclip) {
-            flags.push("Invulerability");
+            flags.push("Invulnerability");
         }
 
         return flags;

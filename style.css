@@ -9,3 +9,44 @@ html, body {
 canvas {
     display: block;
 }
+
+#settingsPanel {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    width: 300px;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.75);
+    border: 2px solid white;
+    color: white;
+    font-family: Arial;
+}
+
+#controlsPanel {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    padding: 20px;
+    background: rgba(0,0,0,0.75);
+    border: 2px solid white;
+    color: white;
+    font-family: Arial;
+
+    width: min(300px, 90vw);
+    max-height: 90vh;
+    overflow-y: auto;
+
+    box-sizing: border-box;
+
+    font-size: clamp(12px, 2vw, 18px);
+}
+
+#controlsPanel h2 {
+    margin: 0 0 10px 0;
+    font-size: clamp(16px, 3vw, 24px);
+}
+
+#controlsPanel p {
+    margin: 2px 0;
+    line-height: 1.2;
+}

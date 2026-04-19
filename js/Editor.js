@@ -28,7 +28,15 @@ export class Editor {
     }
 
     bindInputs() {
+        if (this.game.paused) {
+            return;
+        }
+
         window.addEventListener("mousemove", e => {
+            if (this.game.paused) {
+                return;
+            }
+
             this.mouseX = e.clientX;
             this.mouseY = e.clientY;
 
@@ -37,11 +45,17 @@ export class Editor {
             }
 
             if (this.mouseDown) {
-                if (this.mouseButton === 0) {
-                    if (e.ctrlKey) {
-                        return;
+                if (this.mouseButton === 0 && e.ctrlKey) {
+                    const obj = this.getObjectAtCursor();
+
+                    if (obj && !this.selectedObjects.includes(obj)) {
+                        this.selectedObjects.push(obj);
                     }
 
+                    return;
+                }
+
+                if (this.mouseButton === 0) {
                     const obj = this.getObjectAtCursor();
 
                     if (!obj) {
@@ -64,6 +78,10 @@ export class Editor {
         });
 
         window.addEventListener("mousedown", e => {
+            if (this.game.paused) {
+                return;
+            }
+
             if (!this.game.editorMode) {
                 return;
             }
@@ -105,11 +123,19 @@ export class Editor {
         });
 
         window.addEventListener("mouseup", e => {
+            if (this.game.paused) {
+                return;
+            }
+
             this.mouseDown = false;
             this.mouseButton = null;
         })
 
         window.addEventListener("keydown", e => {
+            if (this.game.paused) {
+                return;
+            }
+
             if (!this.game.editorMode) {
                 return;
             }
@@ -218,22 +244,21 @@ export class Editor {
             if (e.code === "KeyR" && e.ctrlKey && e.shiftKey) {
                 e.preventDefault();
 
+                this.game.reset();
+
                 this.resetEditor();
             }
 
             if (e.code === "Escape") {
                 this.selectedObjects = [];
             }
-            
-
-            /*
-            if (e.code === "Escape") {
-                this.showHelp = !this.showHelp;
-            }
-            */
         });
 
         window.addEventListener("contextmenu", e => {
+            if (this.game.paused) {
+                return;
+            }
+
             if (!this.game.editorMode) {
                 return;
             }
@@ -299,41 +324,18 @@ export class Editor {
         }
 
         this.level = this.level.filter(o => o !== obj);
-        this.selectedObjects = [];
+
+        if (this.selectedObjects.includes(obj)) {
+            this.selectedObjects = this.selectedObjects.filter(o => o !== obj);
+        }
+        
         this.game.loadLevel(this.level);
         this.saveToLocalStorage();
-
-        /*
-        const worldX = this.camera.screenToWorldX(this.mouseX);
-        const worldY = this.camera.screenToWorldY(this.mouseY);
-
-        //const gx = Math.floor(worldX / this.grid);
-        //const gy = Math.floor(worldY / this.grid);
-
-        this.level = this.level.filter(obj => {
-            const left = obj.x * this.grid;
-            const right = left + this.grid;
-            const top = obj.y * this.grid;
-            const bottom = top + this.grid;
-
-            return !(worldX >= left && worldX < right && worldY >= top && worldY < bottom);
-        });
-
-        this.selectedObjects = [];
-
-        //this.level = this.level.filter(obj => !(obj.x === gx && obj.y === gy));
-
-        this.game.loadLevel(this.level);
-        this.saveToLocalStorage();
-        */
     }
 
     handleSelection(e) {
         const worldX = this.camera.screenToWorldX(this.mouseX);
         const worldY = this.camera.screenToWorldY(this.mouseY);
-
-        //const gx = Math.floor(worldX / this.grid);
-        //const gy = Math.floor(worldY / this.grid);
 
         const obj = this.level.find(o =>
             worldX >= o.x * this.grid &&
@@ -534,40 +536,6 @@ export class Editor {
         ctx.restore();
     }
 
-    /*
-    drawHelp(ctx) {
-        if (!this.showHelp) {
-            return;
-        }
-    
-        ctx.save();
-        ctx.fillStyle = "rgba(0,0,0,0.6)";
-        ctx.fillRect(10, 100, 220, 160);
-    
-        ctx.fillStyle = "white";
-        ctx.font = "16px Arial";
-    
-        const lines = [
-            "Editor Controls:",
-            "1 - Block",
-            "2 - Spike",
-            "WASD - Move Camera",
-            "Left Click - Place",
-            "Right Click - Delete",
-            "X - Copy Level JSON",
-            "E - Toggle Editor"
-        ];
-    
-        let y = 125;
-        for (const line of lines) {
-            ctx.fillText(line, 20, y);
-            y += 20;
-        }
-    
-        ctx.restore();
-    }
-    */
-
     saveHistory() {
         const snapshot = JSON.parse(JSON.stringify(this.level));
         this.history.push(snapshot);
@@ -620,8 +588,7 @@ export class Editor {
         });
     
         const levelData = {
-            bg: this.game.backgroundColor,
-            mode: this.game.mode,
+            settings: this.game.settings,
             objects
         };
     
@@ -631,8 +598,13 @@ export class Editor {
     importLevel(json) {
         const data = JSON.parse(json);
     
-        this.game.backgroundColor = data.bg ?? "#000";
-        this.game.mode = data.mode ?? 1;
+        if (data.settings) {
+            Object.assign(this.game.settings, data.settings);
+        }
+        else {
+            this.game.settings.backgroundColor = data.bg ?? "#000";
+            this.game.settings.mode = data.mode ?? 1;
+        }
     
         const parsed = data.objects.map(arr => {
             const [id, x, y, rotation] = arr;

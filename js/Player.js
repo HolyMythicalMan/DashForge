@@ -10,6 +10,10 @@ export class Player {
 
         this.vy = 0;
         this.vx = 0;
+        this.rotation = 0;
+        this.rotationSpeed = 4.5;
+        this.rotationResetSpeed = 5;
+        this.facing = 1; // 1 = right; -1 = left
         this.prevY = y;
         this.gravity = 0.6;
         this.jumpForce = -12;
@@ -21,22 +25,24 @@ export class Player {
         this.accelGround = 1.0;
         this.accelAir = 0.2;
 
+        this.jumpBufferTime = 120;
+        this.jumpBuffer = 0;
+
         this.dead = false;
 
         this.spawnX = x;
         this.spawnY = y;
     }
 
-    update() {
+    update(gravity) {
         this.prevY = this.y;
-        this.vy += this.gravity;
+        this.vy += gravity;
 
         if (this.vy > this.maxFallSpeed) {
             this.vy = this.maxFallSpeed;
         }
 
         this.x += this.vx;
-
         this.y += this.vy;
     }
 
