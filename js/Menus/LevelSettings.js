@@ -11,6 +11,7 @@ export class LevelSettings {
         this.modeCheckbox = document.getElementById("modeCheckbox");
         this.bgColorInput = document.getElementById("bgColorInput");
         this.gravityInput = document.getElementById("gravityInput");
+        this.speedInput = document.getElementById("speedInput");
         this.applyBtn = document.getElementById("applyBtn");
         this.resetBtn = document.getElementById("resetBtn");
 
@@ -35,18 +36,21 @@ export class LevelSettings {
         this.modeCheckbox.checked = this.game.settings.mode === 1;
         this.bgColorInput.value = this.game.settings.backgroundColor;
         this.gravityInput.value = this.game.settings.gravity;
+        this.speedInput.value = this.game.settings.playerSpeed;
     }
 
     resetValues() {
         this.modeCheckbox.checked = false;
         this.bgColorInput.value = "#000000";
         this.gravityInput.value = 0.6;
+        this.speedInput.value = 6;
     }
 
     apply() {
         this.game.settings.mode = this.modeCheckbox.checked ? 1 : 0;
         this.game.settings.backgroundColor = this.bgColorInput.value;
         this.game.settings.gravity = parseFloat(this.gravityInput.value);
+        this.game.settings.playerSpeed = parseFloat(this.speedInput.value);
 
         this.editor.saveToLocalStorage();
     }

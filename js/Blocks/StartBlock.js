@@ -1,11 +1,15 @@
 console.log("StartBlock.js loaded");
 
 export class StartBlock {
-    constructor(x, y, size, color = "#f00") {
-        this.x = x;
-        this.y = y;
-        this.width = size;
-        this.height = size;
+    constructor(gridX, gridY, grid, color = "#f00") {
+        this.gridX = gridX;
+        this.gridY = gridY;
+        this.grid = grid;
+
+        this.x = gridX * grid;
+        this.y = gridY * grid;
+        this.width = grid;
+        this.height = grid;
         this.color = color;
     }
 

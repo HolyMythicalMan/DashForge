@@ -1,11 +1,16 @@
 console.log("Spike.js loaded");
 
 export class Spike {
-    constructor(x, y, size, color = "#444") {
-        this.x = x;
-        this.y = y;
-        this.size = size;
+    constructor(gridX, gridY, grid, rotation = 0, color = "#444") {
+        this.gridX = gridX;
+        this.gridY = gridY;
+        this.grid = grid;
+        this.rotation = rotation;
         this.color = color;
+
+        this.x = gridX * grid;
+        this.y = gridY * grid;
+        this.size = grid;
     }
 
     draw(ctx, camera) {

@@ -1,7 +1,7 @@
 console.log("Player.js loaded");
 
 export class Player {
-    constructor(x, y, width, height, color = "#fff000") {
+    constructor(x, y, width, height, color = "#800000") {
         this.x = x;
         this.y = y;
         this.width = width;

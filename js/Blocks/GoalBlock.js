@@ -1,11 +1,15 @@
 console.log("GoalBlock.js loaded");
 
 export class GoalBlock {
-    constructor(x, y, size, color = "#0f0") {
-        this.x = x;
-        this.y = y;
-        this.width = size;
-        this.height = size;
+    constructor(gridX, gridY, grid, color = "#0f0") {
+        this.gridX = gridX;
+        this.gridY = gridY;
+        this.grid = grid;
+
+        this.x = gridX * grid;
+        this.y = gridY * grid;
+        this.width = grid;
+        this.height = grid;
         this.color = color;
     }
 

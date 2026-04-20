@@ -1,9 +1,12 @@
+Consistency; no spaghetti code
+
 Fix floor and grid placements when in editor mode (especially resizing)
 Add exporting level datas online
 Add level loader from user created levels (official and unofficial)
 Figure out weird landing block physics in platformer mode
 Consider coyote time and landing leeway
-Add pads
 Add colors for blocks as a property
+Edit object menu for block colors and orb/pad types
+Better handling for object selection; menu? current: numbers (limited to 1 - 9 and 0)
 
 Consider switching to TypeScript

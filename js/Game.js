@@ -3,13 +3,22 @@ import { Camera } from "./Camera.js";
 import { Editor } from "./Editor.js";
 import { Floor } from "./Floor.js";
 
+// Menus
 import { Controls } from "./Menus/Controls.js";
 import { LevelSettings } from "./Menus/LevelSettings.js";
 
+// Blocks
 import { Block } from "./Blocks/Block.js";
 import { Spike } from "./Blocks/Spike.js";
 import { StartBlock } from "./Blocks/StartBlock.js";
 import { GoalBlock } from "./Blocks/GoalBlock.js";
+
+// Triggers
+import { ReverseTrigger } from "./Triggers/ReverseTrigger.js";
+
+// Misc / TBD
+import { Pad } from "./Blocks/Pad.js";
+import { Orb } from "./Blocks/Orb.js";
 
 console.log("Game.js loaded");
 
@@ -67,6 +76,11 @@ export class Game {
         this.player = new Player(100, 14 * this.grid, 50, 50);
         this.dead = false;
         this.deathTimer = 0;
+        this.jumpPressed = false;
+        this.jumpWasDown = false;
+
+        // Orbs
+        this.jumpQueuedForOrb = false;
 
         // Editor
         this.editorMode = false;
@@ -80,6 +94,9 @@ export class Game {
         this.blocks = [];
         this.spikes = [];
         this.goalBlocks = [];
+        this.triggers = [];
+        this.pads = [];
+        this.orbs = [];
 
         this.selectionFillStyle = "rgba(0,255,0,0.6)";
 
@@ -152,6 +169,17 @@ export class Game {
 
         this.player.onGround = false;
 
+        this.jumpPressed = this.keys.jump && !this.jumpWasDown;
+        this.jumpWasDown = this.keys.jump;
+
+        if (!this.jumpPressed && !this.player.onGround) {
+            this.jumpQueuedForOrb = true;
+        }
+
+        if (!this.keys.jump) {
+            this.jumpQueuedForOrb = false;
+        }
+
         if (this.keys.jump) {
             this.player.jumpBuffer = this.player.jumpBufferTime;
         }
@@ -165,6 +193,9 @@ export class Game {
         this.handleBlockCollision();
         this.handleSpikeCollision();
         this.handleGoalCollision();
+        this.handleTriggerCollision();
+        this.handleOrbCollision();
+        this.handlePadCollision();
 
         if (!this.player.onGround) {
             this.player.rotation += this.player.rotationSpeed * this.player.facing;
@@ -191,18 +222,18 @@ export class Game {
             this.player.rotation = r;
         }
     
-
         if (this.player.onGround && !this.keys.left && !this.keys.right) {
             this.player.vx *= this.player.friction;
         }
 
         if (this.settings.mode === 0) {
             this.player.vx = this.settings.playerSpeed;
+            this.player.facing = Math.sign(this.player.vx || 1);
         }
         else if (this.settings.mode === 1) {
-            let accel = this.player.onGround
+            let accel = (this.player.onGround
                 ? this.player.accelGround
-                : this.player.accelAir;
+                : this.player.accelAir) * (this.settings.playerSpeed / 6);
             
             if (this.keys.left) {
                 this.player.vx -= accel;
@@ -214,11 +245,13 @@ export class Game {
                 this.player.facing = 1;
             }
 
-            if (this.player.vx > this.player.maxSpeed) {
-                this.player.vx = this.player.maxSpeed;
+            const max = this.settings.playerSpeed;
+
+            if (this.player.vx > max) {
+                this.player.vx = max;
             }
-            if (this.player.vx < -this.player.maxSpeed) {
-                this.player.vx = -this.player.maxSpeed;
+            if (this.player.vx < -max) {
+                this.player.vx = -max;
             }
         }
 
@@ -244,13 +277,21 @@ export class Game {
             );
         }
 
-        this.drawPlayer();
-
-        this.floor.draw(ctx, this.camera);
-
         if (this.startBlock) {
             this.startBlock.draw(ctx, this.camera);
         }
+
+        for (const orb of this.orbs) {
+            orb.draw(ctx, this.camera);
+
+            if (this.debugHitboxes) {
+                this.drawHitbox(orb.getHitbox(), "cyan");
+            }
+        }
+
+        this.drawPlayer();
+
+        this.floor.draw(ctx, this.camera);
         
         for (const block of this.blocks) {
             const isSelected = this.editor.selectedObjects.includes(
@@ -305,6 +346,20 @@ export class Game {
             goalBlock.draw(ctx, this.camera);
 
             ctx.restore();
+        }
+
+        if (this.editorMode) {
+            for (const trigger of this.triggers) {
+                trigger.draw(ctx, this.camera, this.canvas.height);
+            }
+        }
+
+        for (const pad of this.pads) {
+            pad.draw(ctx, this.camera);
+
+            if (this.debugHitboxes) {
+                this.drawHitbox(pad.getHitbox(), "cyan");
+            }
         }
 
         if (this.editorMode) {
@@ -452,7 +507,7 @@ export class Game {
         const sy = this.camera.worldToScreenY(rect.y);
 
         ctx.fillStyle = color;
-        ctx.globalAlpha = 0.35;
+        ctx.globalAlpha = 0.6;
         ctx.fillRect(sx + 1, sy + 1, rect.w - 2, rect.h - 2);
 
         ctx.restore();
@@ -602,6 +657,60 @@ export class Game {
         }
     }
 
+    handleTriggerCollision() {
+        if (this.settings.mode !== 0) {
+            return;
+        }
+    
+        const pHit = this.player.getSpikeHitbox();
+    
+        for (const trigger of this.triggers) {
+            if (this.rectsOverlap(pHit, trigger.getHitbox())) {
+                this.settings.playerSpeed = -this.settings.playerSpeed;
+    
+                this.player.vx = this.settings.playerSpeed;
+                this.player.facing = Math.sign(this.player.vx || 1);
+            }
+        }
+    }
+
+    handlePadCollision() {
+        const pHit = this.player.getSpikeHitbox();
+
+        for (const pad of this.pads) {
+            if (this.rectsOverlap(pHit, pad.getHitbox())) {
+                this.player.vy = -pad.getLaunchPower();
+                this.player.jumpBuffer = 0;
+
+                if (this.settings.mode === 0) {
+                    this.player.facing = Math.sign(this.player.vx || 1);
+                }
+            }
+        }
+    }
+
+    handleOrbCollision() {
+        const pHit = this.player.getSpikeHitbox();
+
+        for (const orb of this.orbs) {
+            if (!this.rectsOverlap(pHit, orb.getHitbox())) {
+                orb.used = false;
+            }
+
+            if (this.jumpQueuedForOrb && !orb.used && this.rectsOverlap(pHit, orb.getHitbox())) {
+                this.player.vy = -orb.getLaunchPower();
+                this.player.jumpBuffer = 0;
+                orb.used = true;
+
+                this.jumpQueuedForOrb = false;
+
+                if (this.settings.mode === 0) {
+                    this.player.facing = Math.sign(this.player.vx || 1);
+                }
+            }
+        }
+    }
+
     // Hitbox Methods
 
     rectsOverlap(a, b) {
@@ -639,6 +748,12 @@ export class Game {
 
         this.player.jumpBuffer = 0;
         this.player.rotation = 0;
+
+        if (this.settings.mode === 0) {
+            this.settings.playerSpeed = Math.abs(this.settings.playerSpeed);
+            this.player.vx = this.settings.playerSpeed;
+            this.player.facing = 1;
+        }
     }
 
     // Level Methods
@@ -648,21 +763,33 @@ export class Game {
         this.spikes = [];
         this.startBlock = null;
         this.goalBlocks = [];
+        this.triggers = [];
+        this.pads = [];
+        this.orbs = [];
 
         for (const obj of levelArray) {
             if (obj.type === "block") {
-                this.blocks.push(new Block(obj.x * this.grid, obj.y * this.grid, this.grid, this.grid));
+                this.blocks.push(new Block(obj.x, obj.y, this.grid));
             }
             if (obj.type === "spike") {
-                const spike = new Spike(obj.x * this.grid, obj.y * this.grid, this.grid);
+                const spike = new Spike(obj.x, obj.y, this.grid);
                 spike.rotation = obj.rotation || 0;
                 this.spikes.push(spike);
             }
             if (obj.type === "start") {
-                this.startBlock = new StartBlock(obj.x * this.grid, obj.y * this.grid, this.grid);
+                this.startBlock = new StartBlock(obj.x, obj.y, this.grid);
             }
             if (obj.type === "goal") {
-                this.goalBlocks.push(new GoalBlock(obj.x * this.grid, obj.y * this.grid, this.grid));
+                this.goalBlocks.push(new GoalBlock(obj.x, obj.y, this.grid));
+            }
+            if (obj.type === "reverseTrigger") {
+                this.triggers.push(new ReverseTrigger(obj.x, obj.y, this.grid));
+            }
+            if (obj.type === "pad") {
+                this.pads.push(new Pad(obj.x, obj.y, this.grid, obj.padType));
+            }
+            if (obj.type === "orb") {
+                this.orbs.push(new Orb(obj.x, obj.y, this.grid, obj.orbType));
             }
         }
 

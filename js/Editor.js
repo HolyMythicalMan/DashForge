@@ -154,6 +154,15 @@ export class Editor {
             if (e.code === "Digit4") {
                 this.selectedType = "goal";
             }
+            if (e.code === "Digit5") {
+                this.selectedType = "reverseTrigger";
+            }
+            if (e.code === "Digit6") {
+                this.selectedType = "pad";
+            }
+            if (e.code === "Digit7") {
+                this.selectedType = "orb";
+            }
 
             // Movement
 
@@ -272,12 +281,17 @@ export class Editor {
         const worldX = this.camera.screenToWorldX(this.mouseX);
         const worldY = this.camera.screenToWorldY(this.mouseY);
     
-        return this.level.find(o => (
-            worldX >= o.x * this.grid &&
-            worldX <  (o.x * this.grid + this.grid) &&
-            worldY >= o.y * this.grid &&
-            worldY <  (o.y * this.grid + this.grid)
-        ));
+        return this.level.find(o => {
+            const x = o.x * this.grid;
+            const y = o.y * this.grid;
+
+            return (
+                worldX >= x &&
+                worldX < x + this.grid &&
+                worldY >= y &&
+                worldY < y + this.grid
+            );
+        });
     }
     
     placeObject() {
@@ -293,17 +307,13 @@ export class Editor {
             return;
         }
 
-        /*
-        if (this.selectedType === "goal" && this.level.some(o => o.type === "start")) {
-            return;
-        }
-        */
-
         const newObj = {
             type: this.selectedType,
             x: gx,
             y: gy,
-            rotation: 0
+            rotation: 0,
+            padType: 0,
+            orbType: 0
         };
 
         this.level.push(newObj);
@@ -533,6 +543,54 @@ export class Editor {
             ctx.fillRect(10, 35, this.grid * 0.6, this.grid * 0.6);
         }
 
+        if (this.selectedType === "reverseTrigger") {
+            ctx.fillStyle = "rgba(0,255,255,0.5)";
+            ctx.beginPath();
+            ctx.fillRect(10, 35, this.grid * 0.6, this.grid * 0.6);
+            ctx.stroke();
+        }
+        
+        if (this.selectedType === "pad") {
+            const padWidth = this.grid * 0.6;
+            const padHeight = this.grid * 0.15;
+        
+            const x = 10;
+            const y = 35 + (this.grid * 0.6 - padHeight);
+        
+            const r = 7;
+        
+            ctx.fillStyle = "rgba(255,255,0,0.5)";
+            ctx.beginPath();
+        
+            ctx.moveTo(x, y + padHeight);
+            ctx.lineTo(x + padWidth, y + padHeight);
+            ctx.lineTo(x + padWidth, y + r);
+            ctx.quadraticCurveTo(
+                x + padWidth,
+                y,
+                x + padWidth - r,
+                y
+            );
+        
+            ctx.lineTo(x + r, y);
+            ctx.quadraticCurveTo(
+                x,
+                y,
+                x,
+                y + r
+            );
+        
+            ctx.closePath();
+            ctx.fill();
+        }        
+
+        if (this.selectedType === "orb") {
+            ctx.fillStyle = "rgba(255,255,0,0.5)";
+            ctx.beginPath();
+            ctx.arc(10 + this.grid * 0.3, 35 + this.grid * 0.3, this.grid * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+        }        
+
         ctx.restore();
     }
 
@@ -583,6 +641,14 @@ export class Editor {
             if (obj.rotation !== undefined) {
                 arr.push(obj.rotation);
             }
+
+            if (obj.type === "pad") {
+                arr.push(obj.padType);
+            }
+
+            if (obj.type === "orb") {
+                arr.push(obj.orbType);
+            }
     
             return arr;
         });
@@ -607,13 +673,15 @@ export class Editor {
         }
     
         const parsed = data.objects.map(arr => {
-            const [id, x, y, rotation] = arr;
+            const [id, x, y, rotation, extra] = arr;
     
             return {
                 type: IDToType[id],
                 x,
                 y,
-                rotation: rotation ?? 0
+                rotation: rotation ?? 0,
+                padType: IDToType[id] === "pad" ? extra ?? "yellow" : undefined,
+                orbType: IDToType[id] === "orb" ? extra ?? "yellow" : undefined
             };
         });
     
